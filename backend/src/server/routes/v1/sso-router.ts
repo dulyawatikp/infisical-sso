@@ -18,7 +18,7 @@ import { z } from "zod";
 
 import { INFISICAL_PROVIDER_GITHUB_ACCESS_TOKEN } from "@app/lib/config/const";
 import { getConfig } from "@app/lib/config/env";
-import { BadRequestError, NotFoundError } from "@app/lib/errors";
+import { BadRequestError, NotFoundError, UnauthorizedError } from "@app/lib/errors";
 import { logger } from "@app/lib/logger";
 import { ms } from "@app/lib/ms";
 import { RequestContextKey } from "@app/lib/request-context/request-context-keys";
@@ -592,6 +592,23 @@ export const registerSsoRouter = async (server: FastifyZodProvider) => {
       throw new BadRequestError({
         message: "Token exchange is no longer supported. Please update your client."
       });
+    }
+  });
+  server.route({
+    method: "POST",
+    url: "/portal-relay",
+    handler: async (req, res) => {
+      const cookie = req.cookies["__Secure-next-auth.session-token"];
+      if (!cookie) throw new UnauthorizedError({ message: "No portal session cookie" });
+      const result = await req.server.services.portalSso.relayPortalSession({
+        cookie,
+        ip: req.realIp,
+        userAgent: req.headers["user-agent"] ?? ""
+      });
+      if (result.result !== ProviderAuthResult.SESSION || !("tokens" in result)) {
+        throw new UnauthorizedError({ message: "Portal auth failed: signup required" });
+      }
+      return res.send({ token: result.tokens.access });
     }
   });
 };

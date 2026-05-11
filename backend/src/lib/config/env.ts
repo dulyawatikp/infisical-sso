@@ -235,6 +235,9 @@ const envSchema = z
     CONTENTFUL_SPACE_ID: zpStr(z.string().optional()),
     CONTENTFUL_DELIVERY_TOKEN: zpStr(z.string().optional()),
     CONTENTFUL_ENVIRONMENT: zpStr(z.string().optional().default("master")),
+    // Portal SSO
+    PORTAL_SSO_ENABLED: zodStrBool.default("false"),
+    PORTAL_SSO_NAVBAR_API_HOST: zpStr(z.string().default("http://sso-navbar-api:3000")),
     // GitHub API token for upgrade path tool
     GITHUB_API_TOKEN: zpStr(z.string().optional()),
     // jwt options

@@ -132,6 +132,7 @@ import { TMicrosoftTeamsServiceFactory } from "@app/services/microsoft-teams/mic
 import { TNotificationServiceFactory } from "@app/services/notification/notification-service";
 import { TOfflineUsageReportServiceFactory } from "@app/services/offline-usage-report/offline-usage-report-service";
 import { TOrgServiceFactory } from "@app/services/org/org-service";
+import { TPortalSsoServiceFactory } from "@app/services/portal-sso/portal-sso-service";
 import { TOrgAdminServiceFactory } from "@app/services/org-admin/org-admin-service";
 import { TPkiAlertServiceFactory } from "@app/services/pki-alert/pki-alert-service";
 import { TPkiAlertV2ServiceFactory } from "@app/services/pki-alert-v2/pki-alert-v2-service";
@@ -270,6 +271,7 @@ declare module "fastify" {
       permission: TPermissionServiceFactory;
       org: TOrgServiceFactory;
       oidc: TOidcConfigServiceFactory;
+      portalSso: TPortalSsoServiceFactory;
       superAdmin: TSuperAdminServiceFactory;
       user: TUserServiceFactory;
       group: TGroupServiceFactory;

@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { INFISICAL_PROVIDER_GITHUB_ACCESS_TOKEN } from "@app/lib/config/const";
 import { getConfig } from "@app/lib/config/env";
-import { UnauthorizedError } from "@app/lib/errors";
+import { ForbiddenRequestError, UnauthorizedError } from "@app/lib/errors";
 import { authRateLimit } from "@app/server/config/rateLimiter";
 import { addAuthOriginDomainCookie } from "@app/server/lib/cookie";
 import { getUserAgentType } from "@app/server/plugins/audit-log";
@@ -32,6 +32,8 @@ export const registerLoginRouter = async (server: FastifyZodProvider) => {
       }
     },
     handler: async (req) => {
+      if (getConfig().PORTAL_SSO_ENABLED) throw new ForbiddenRequestError({ message: "Local login disabled. Use SSO." });
+
       const { serverPublicKey, salt } = await server.services.login.loginGenServerPublicKey({
         email: req.body.email,
         clientPublicKey: req.body.clientPublicKey,
@@ -155,6 +157,8 @@ export const registerLoginRouter = async (server: FastifyZodProvider) => {
       }
     },
     handler: async (req, res) => {
+      if (getConfig().PORTAL_SSO_ENABLED) throw new ForbiddenRequestError({ message: "Local login disabled. Use SSO." });
+
       const userAgent = req.headers["user-agent"];
       if (!userAgent) throw new Error("user agent header is required");
 
@@ -230,6 +234,8 @@ export const registerLoginRouter = async (server: FastifyZodProvider) => {
       }
     },
     handler: async (req, res) => {
+      if (getConfig().PORTAL_SSO_ENABLED) throw new ForbiddenRequestError({ message: "Local login disabled. Use SSO." });
+
       const userAgent = req.headers["user-agent"];
       if (!userAgent) throw new Error("user agent header is required");
 

@@ -381,6 +381,7 @@ import { offlineUsageReportServiceFactory } from "@app/services/offline-usage-re
 import { incidentContactDALFactory } from "@app/services/org/incident-contacts-dal";
 import { orgDALFactory } from "@app/services/org/org-dal";
 import { orgServiceFactory } from "@app/services/org/org-service";
+import { portalSsoServiceFactory } from "@app/services/portal-sso/portal-sso-service";
 import { orgAdminServiceFactory } from "@app/services/org-admin/org-admin-service";
 import { orgAssetDALFactory } from "@app/services/org-asset/org-asset-dal";
 import { orgMembershipDALFactory } from "@app/services/org-membership/org-membership-dal";
@@ -2276,6 +2277,8 @@ export const registerRoutes = async (
     telemetryService
   });
 
+  const portalSsoService = portalSsoServiceFactory({ oidcConfigService: oidcService, orgDAL });
+
   const userEngagementService = userEngagementServiceFactory({
     userDAL,
     orgDAL
@@ -3258,6 +3261,7 @@ export const registerRoutes = async (
     org: orgService,
     subOrganization: subOrgService,
     oidc: oidcService,
+    portalSso: portalSsoService,
     authToken: tokenService,
     superAdmin: superAdminService,
     offlineUsageReport: offlineUsageReportService,
