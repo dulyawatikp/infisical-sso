@@ -1,0 +1,59 @@
+# Portal SSO deployment values for Infisical
+# Deploy with: helm upgrade --install infisical-sso . -f values-portal-sso.yaml -n infisical-sso --create-namespace
+
+infisical:
+  name: infisical-sso
+  replicaCount: 1
+  image:
+    repository: ghcr.io/dulyawatikp/infisical-standalone
+    tag: "1.0.0-portal-sso"
+    pullPolicy: IfNotPresent
+    imagePullSecrets:
+      - name: ghcr-pull-secret
+  extraEnv:
+    - name: PORTAL_SSO_ENABLED
+      value: "true"
+    - name: PORTAL_SSO_NAVBAR_API_HOST
+      value: "http://sso-navbar-api:3000"
+    - name: SITE_URL
+      value: "https://infisical.portal.ikp.rke2"
+    - name: HTTPS_ENABLED
+      value: "true"
+  service:
+    type: ClusterIP
+
+ingress:
+  enabled: true
+  hostName: infisical.portal.ikp.rke2
+  nginx:
+    enabled: false
+  ingressClassName: nginx
+  tls:
+    - secretName: portal-tls
+      hosts:
+        - infisical.portal.ikp.rke2
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+
+postgresql:
+  enabled: true
+  name: postgresql
+  fullnameOverride: postgresql-infisical-sso
+  auth:
+    username: infisical
+    password: infisical-password
+    database: infisical
+  primary:
+    persistence:
+      size: 10Gi
+
+redis:
+  enabled: true
+  name: redis
+  fullnameOverride: redis-infisical-sso
+  architecture: standalone
+  auth:
+    enabled: false
+  master:
+    persistence:
+      size: 1Gi
