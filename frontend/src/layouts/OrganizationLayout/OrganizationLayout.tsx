@@ -7,6 +7,7 @@ import { SidebarInset, SidebarProvider } from "@app/components/v3";
 import { useServerConfig, useSubscription } from "@app/context";
 import { usePopUp } from "@app/hooks";
 import { useFetchServerStatus } from "@app/hooks/api";
+import { envConfig } from "@app/config/env";
 
 import { AuditLogBanner } from "./components/AuditLogBanner";
 import { InsecureConnectionBanner } from "./components/InsecureConnectionBanner";
@@ -37,6 +38,13 @@ export const OrganizationLayout = () => {
       <SidebarProvider
         className={`dark ${containerHeight} flex !min-h-0 w-full flex-col overflow-hidden bg-bunker-800 transition-all`}
       >
+        {envConfig.PORTAL_SSO_ENABLED && (
+          <iframe
+            src={envConfig.PORTAL_SSO_NAVBAR_HOST}
+            style={{ width: "100%", height: "48px", border: "none", display: "block" }}
+            title="SSO Portal Navbar"
+          />
+        )}
         <Navbar />
         <div className="flex min-h-0 flex-1 overflow-hidden">
           <OrgSidebar />

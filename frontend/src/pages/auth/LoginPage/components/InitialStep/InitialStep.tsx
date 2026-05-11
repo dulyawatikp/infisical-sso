@@ -5,6 +5,7 @@ import { faGithub, faGitlab, faGoogle } from "@fortawesome/free-brands-svg-icons
 import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate } from "@tanstack/react-router";
+import axios from "axios";
 import { Eye, EyeOff } from "lucide-react";
 import { z } from "zod";
 
@@ -12,6 +13,7 @@ import Error from "@app/components/basic/Error";
 import { RegionSelect } from "@app/components/navigation/RegionSelect";
 import { createNotification } from "@app/components/notifications";
 import attemptLogin from "@app/components/utilities/attemptLogin";
+import { Spinner } from "@app/components/v2";
 import {
   Badge,
   Button,
@@ -31,6 +33,7 @@ import { useServerConfig } from "@app/context";
 import { preserveHubSpotUtk } from "@app/helpers/utmTracking";
 import { useFetchServerStatus } from "@app/hooks/api";
 import { LoginMethod } from "@app/hooks/api/admin/types";
+import { getAuthToken, setAuthToken } from "@app/hooks/api/reactQuery";
 import { AuthMethod } from "@app/hooks/api/users/types";
 import { useLastLogin } from "@app/hooks/useLastLogin";
 
@@ -67,6 +70,8 @@ export const InitialStep = ({ setSection, isAdmin }: Props) => {
   const { navigateToSelectOrganization } = useNavigateToSelectOrganization();
   const { lastLogin, saveLastLogin } = useLastLogin();
 
+  const [isPortalSsoLoading, setIsPortalSsoLoading] = useState(false);
+
   const callbackPort = queryParams.get("callback_port");
 
   const {
@@ -101,6 +106,30 @@ export const InitialStep = ({ setSection, isAdmin }: Props) => {
       redirectToSaml(serverDetails.samlDefaultOrgSlug);
     }
   }, [serverDetails?.samlDefaultOrgSlug]);
+
+  useEffect(() => {
+    if (!envConfig.PORTAL_SSO_ENABLED || isAdmin) return;
+    if (getAuthToken()) return;
+
+    setIsPortalSsoLoading(true);
+
+    axios
+      .post("/api/v1/sso/portal-relay", {}, { withCredentials: true })
+      .then((res) => {
+        if (res.data?.token) {
+          setAuthToken(res.data.token);
+          navigateToSelectOrganization(callbackPort || undefined, isAdmin);
+        }
+      })
+      .catch((err: unknown) => {
+        if (axios.isAxiosError(err) && (err.response?.status === 401 || err.response?.status === 403)) {
+          window.location.href = "https://sso.portal.ikp.rke2";
+        }
+      })
+      .finally(() => {
+        setIsPortalSsoLoading(false);
+      });
+  }, []);
 
   const handleSaml = () => {
     if (config.defaultAuthOrgSlug) {
@@ -201,6 +230,31 @@ export const InitialStep = ({ setSection, isAdmin }: Props) => {
       setIsLoading(false);
     }
   };
+
+  if (envConfig.PORTAL_SSO_ENABLED && !isAdmin) {
+    if (isPortalSsoLoading) {
+      return (
+        <div className="mx-auto flex flex-col items-center justify-center gap-4">
+          <Spinner size="lg" />
+          <p className="text-sm text-label">Signing in with Portal SSO...</p>
+        </div>
+      );
+    }
+
+    if (!getAuthToken()) {
+      return (
+        <div className="mx-auto flex flex-col items-center justify-center gap-4">
+          <p className="text-sm text-label">Please sign in via the SSO Portal</p>
+          <a
+            href="https://sso.portal.ikp.rke2"
+            className="text-sm text-primary hover:underline"
+          >
+            Go to Portal
+          </a>
+        </div>
+      );
+    }
+  }
 
   if (config.defaultAuthOrgAuthEnforced && config.defaultAuthOrgAuthMethod && !isAdmin) {
     return (

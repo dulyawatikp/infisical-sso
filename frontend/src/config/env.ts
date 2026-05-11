@@ -27,6 +27,19 @@ export const envConfig = {
     );
   },
 
+  get PORTAL_SSO_ENABLED() {
+    return (
+      import.meta.env.VITE_PORTAL_SSO_ENABLED === true ||
+      import.meta.env.VITE_PORTAL_SSO_ENABLED === "true"
+    );
+  },
+
+  get PORTAL_SSO_NAVBAR_HOST() {
+    return (
+      import.meta.env.VITE_PORTAL_SSO_NAVBAR_HOST || "https://sso-navbar.portal.ikp.rke2"
+    );
+  },
+
   get PLATFORM_VERSION() {
     // Release tags (e.g. "v0.159.15") are passed through as INFISICAL_PLATFORM_VERSION
     // by the release workflow. Strip any leading "v" so consumers can prefix it
