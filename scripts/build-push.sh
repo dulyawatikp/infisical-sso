@@ -39,7 +39,7 @@ if ! command -v docker &>/dev/null; then
   exit 1
 fi
 
-IMAGE_TAG="ghcr.io/dulyawatikp/infisical-standalone:${VERSION}"
+IMAGE_TAG="ghcr.io/dulyawatikp/infisical-sso:${VERSION}"
 
 # --- Build & push ------------------------------------------------------------
 echo "==> Building and pushing: $IMAGE_TAG"

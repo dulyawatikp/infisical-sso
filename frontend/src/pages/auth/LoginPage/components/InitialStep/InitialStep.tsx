@@ -123,7 +123,7 @@ export const InitialStep = ({ setSection, isAdmin }: Props) => {
       })
       .catch((err: unknown) => {
         if (axios.isAxiosError(err) && (err.response?.status === 401 || err.response?.status === 403)) {
-          window.location.href = "https://sso.portal.ikp.rke2";
+          window.location.href = "https://keycloak.portal.ikp.rke2";
         }
       })
       .finally(() => {
@@ -246,7 +246,7 @@ export const InitialStep = ({ setSection, isAdmin }: Props) => {
         <div className="mx-auto flex flex-col items-center justify-center gap-4">
           <p className="text-sm text-label">Please sign in via the SSO Portal</p>
           <a
-            href="https://sso.portal.ikp.rke2"
+            href="https://keycloak.portal.ikp.rke2"
             className="text-sm text-primary hover:underline"
           >
             Go to Portal
