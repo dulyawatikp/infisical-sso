@@ -49,6 +49,7 @@ docker buildx build \
   --platform linux/amd64 \
   --build-arg PORTAL_SSO_ENABLED=true \
   --build-arg PORTAL_SSO_NAVBAR_HOST=https://sso-navbar.portal.ikp.rke2 \
+  --build-arg PORTAL_SSO_KEYCLOAK_URL=https://keycloak.portal.ikp.rke2/realms/SSO/protocol/openid-connect/auth \
   --build-arg POSTHOG_HOST=https://app.posthog.com \
   --build-arg POSTHOG_API_KEY=posthog-api-key \
   --build-arg INTERCOM_ID=intercom-id \

@@ -6,7 +6,7 @@ infisical:
   replicaCount: 1
   image:
     repository: ghcr.io/dulyawatikp/infisical-sso
-    tag: "fips-057448ef4f"
+    tag: "c326169eb5"
     pullPolicy: IfNotPresent
     imagePullSecrets:
       - name: ghcr-pull-secret
@@ -19,6 +19,10 @@ infisical:
       value: "true"
     - name: PORTAL_SSO_NAVBAR_API_HOST
       value: "https://sso-navbar.portal.ikp.rke2"
+    - name: PORTAL_SSO_NAVBAR_API_PATH
+      value: "/api/me"
+    - name: PORTAL_SSO_KEYCLOAK_ISSUER
+      value: "https://keycloak.portal.ikp.rke2/realms/SSO"
     - name: SITE_URL
       value: "https://infisical.portal.ikp.rke2"
     - name: HTTPS_ENABLED

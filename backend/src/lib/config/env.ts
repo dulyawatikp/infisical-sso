@@ -238,6 +238,10 @@ const envSchema = z
     // Portal SSO
     PORTAL_SSO_ENABLED: zodStrBool.default("false"),
     PORTAL_SSO_NAVBAR_API_HOST: zpStr(z.string().default("http://sso-navbar-api:3000")),
+    PORTAL_SSO_NAVBAR_API_PATH: zpStr(z.string().default("/api/me")),
+    PORTAL_SSO_KEYCLOAK_ISSUER: zpStr(
+      z.string().default("https://keycloak.portal.ikp.rke2/realms/SSO")
+    ),
     // GitHub API token for upgrade path tool
     GITHUB_API_TOKEN: zpStr(z.string().optional()),
     // jwt options

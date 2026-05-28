@@ -3,6 +3,9 @@ import { Knex } from "knex";
 import { OIDCConfigurationType } from "@app/ee/services/oidc/oidc-config-types";
 import { TableName } from "../schemas";
 
+const KEYCLOAK_ISSUER = process.env.PORTAL_SSO_KEYCLOAK_ISSUER || "https://keycloak.portal.ikp.rke2/realms/SSO";
+const DISCOVERY_URL = `${KEYCLOAK_ISSUER}/.well-known/openid-configuration`;
+
 export async function seed(knex: Knex): Promise<void> {
   const org = await knex(TableName.Organization).first();
   if (!org) return;
@@ -14,8 +17,8 @@ export async function seed(knex: Knex): Promise<void> {
       orgId: org.id,
       isActive: true,
       configurationType: OIDCConfigurationType.DISCOVERY_URL,
-      discoveryURL: "https://keycloak.portal.ikp.rke2/realms/SSO/.well-known/openid-configuration",
-      issuer: "https://keycloak.portal.ikp.rke2/realms/SSO",
+      discoveryURL: DISCOVERY_URL,
+      issuer: KEYCLOAK_ISSUER,
       allowedEmailDomains: null,
       manageGroupMemberships: false,
       encryptedOidcClientId: Buffer.alloc(0),
@@ -25,8 +28,8 @@ export async function seed(knex: Knex): Promise<void> {
     await knex(TableName.OidcConfig).where({ orgId: org.id }).update({
       isActive: true,
       configurationType: OIDCConfigurationType.DISCOVERY_URL,
-      discoveryURL: "https://keycloak.portal.ikp.rke2/realms/SSO/.well-known/openid-configuration",
-      issuer: "https://keycloak.portal.ikp.rke2/realms/SSO",
+      discoveryURL: DISCOVERY_URL,
+      issuer: KEYCLOAK_ISSUER,
       manageGroupMemberships: false
     });
   }

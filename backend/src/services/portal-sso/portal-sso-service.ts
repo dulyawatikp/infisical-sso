@@ -32,7 +32,7 @@ export const portalSsoServiceFactory = ({ oidcConfigService, orgDAL }: TPortalSs
   }) => {
     const appCfg = getConfig();
 
-    const meUrl = `${appCfg.PORTAL_SSO_NAVBAR_API_HOST}/api/me`;
+    const meUrl = `${appCfg.PORTAL_SSO_NAVBAR_API_HOST}${appCfg.PORTAL_SSO_NAVBAR_API_PATH}`;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10_000);
     let response: Response;
