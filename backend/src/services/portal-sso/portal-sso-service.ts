@@ -3,8 +3,6 @@ import { getConfig } from "@app/lib/config/env";
 import { UnauthorizedError } from "@app/lib/errors";
 import { TOrgDALFactory } from "@app/services/org/org-dal";
 
-const PORTAL_COOKIE_NAME = "__Secure-next-auth.session-token";
-
 type TPortalMeResponse = {
   sub: string;
   email: string;
@@ -22,11 +20,11 @@ export type TPortalSsoServiceFactory = ReturnType<typeof portalSsoServiceFactory
 
 export const portalSsoServiceFactory = ({ oidcConfigService, orgDAL }: TPortalSsoServiceFactoryDep) => {
   const relayPortalSession = async ({
-    cookie,
+    cookieHeader,
     ip,
     userAgent
   }: {
-    cookie: string;
+    cookieHeader: string;
     ip: string;
     userAgent: string;
   }) => {
@@ -39,7 +37,7 @@ export const portalSsoServiceFactory = ({ oidcConfigService, orgDAL }: TPortalSs
     try {
       response = await fetch(meUrl, {
         headers: {
-          Cookie: `${PORTAL_COOKIE_NAME}=${cookie}`
+          Cookie: cookieHeader
         },
         signal: controller.signal
       });

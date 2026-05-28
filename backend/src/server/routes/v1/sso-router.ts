@@ -34,6 +34,15 @@ const passport = new Authenticator({ key: "sso", userProperty: "passportUser" })
 
 let serverInstance: FastifyZodProvider | null = null;
 
+const PORTAL_SESSION_COOKIE_NAME = "__Secure-next-auth.session-token";
+
+const hasPortalSessionCookie = (cookieHeader: string) => {
+  return cookieHeader.split(";").some((cookie) => {
+    const cookieName = cookie.trim().split("=", 1)[0];
+    return cookieName === PORTAL_SESSION_COOKIE_NAME || cookieName.startsWith(`${PORTAL_SESSION_COOKIE_NAME}.`);
+  });
+};
+
 export const registerOauthMiddlewares = (server: FastifyZodProvider) => {
   serverInstance = server;
   const appCfg = getConfig();
@@ -598,10 +607,10 @@ export const registerSsoRouter = async (server: FastifyZodProvider) => {
     method: "POST",
     url: "/portal-relay",
     handler: async (req, res) => {
-      const cookie = req.cookies["__Secure-next-auth.session-token"];
-      if (!cookie) throw new UnauthorizedError({ message: "No portal session cookie" });
+      const cookieHeader = req.headers.cookie ?? "";
+      if (!hasPortalSessionCookie(cookieHeader)) throw new UnauthorizedError({ message: "No portal session cookie" });
       const result = await req.server.services.portalSso.relayPortalSession({
-        cookie,
+        cookieHeader,
         ip: req.realIp,
         userAgent: req.headers["user-agent"] ?? ""
       });
