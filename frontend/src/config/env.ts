@@ -43,7 +43,7 @@ export const envConfig = {
   get PORTAL_SSO_KEYCLOAK_URL() {
     return (
       import.meta.env.VITE_PORTAL_SSO_KEYCLOAK_URL ||
-      "https://sso.portal.ikp.rke2"
+      "https://keycloak.portal.ikp.rke2/realms/SSO/protocol/openid-connect/auth"
     );
   },
 
