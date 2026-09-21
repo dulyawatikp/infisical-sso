@@ -27,6 +27,7 @@ License rationale: the new code reuses **behavior, contracts, and schema** (API 
 | EE paywall gate (`plan.oidcSSO` check) | **Dropped** — commercial restriction, not behavior |
 | Seat-limit guard (`throwOnPlanSeatLimitReached`) | **Kept** via injected dependency — functional parity |
 | EE OIDC files | Remain on disk, **unwired** (no imports from production wiring). Deletion is a separate future cleanup |
+| EE OIDC fork patches | After the new module is wired **and verified**, restore the locally-patched EE OIDC files (`oidc-config-service.ts`, `oidc-router.ts`) to their original pre-fork-modification state from git history — so no fork-derived patches remain under `ee/`. Files stay unwired; no functional impact. Restore fork-point versions (not current upstream main) because current upstream EE code depends on upstream-only APIs absent in this fork (e.g. `server.cookieSigningKey`, `oidc-config-fns`, `user-alias-fns` helpers) and would fail `type:check` |
 | Parity target | **This fork's local `ee/` behavior** (what production runs today). Upstream-only EE changes are out of scope (see §8) |
 
 ### 2.1 Implementation boundary (clean-room discipline)
