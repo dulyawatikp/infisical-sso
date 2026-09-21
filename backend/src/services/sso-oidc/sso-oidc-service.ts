@@ -506,6 +506,13 @@ export const ssoOidcServiceFactory = ({
       }
       await blockLocalAndPrivateIpAddresses(oidcCfg.discoveryURL);
       issuer = await Issuer.discover(oidcCfg.discoveryURL);
+      for await (const endpoint of [
+        issuer.metadata.jwks_uri,
+        issuer.metadata.token_endpoint,
+        issuer.metadata.userinfo_endpoint
+      ]) {
+        if (endpoint) await blockLocalAndPrivateIpAddresses(endpoint);
+      }
     } else {
       if (
         !oidcCfg.issuer ||
