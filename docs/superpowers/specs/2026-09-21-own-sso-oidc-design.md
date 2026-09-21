@@ -70,12 +70,11 @@ The SSO module defines **its own minimal structural types** for injected deps; i
 | Dependency | Contract | Wired from |
 |---|---|---|
 | `oidcConfigDAL` | `findOne / update / create` (own DAL type) | new `sso-oidc-dal.ts` |
-| `orgDAL / userDAL / userAliasDAL / membershipRoleDAL / membershipGroupDAL / projectDAL / projectBotDAL / projectKeyDAL` | `Pick`-shaped from community DAL types | community DALs (already instantiated) |
-| `groupDAL` | structural: `findByOrgId(orgId) => Promise<TGroups[]>` | EE group-dal instance |
-| `userGroupMembershipDAL` | structural: `findGroupMembershipsByUserIdInOrg(userId, orgId) => Promise<{ groupId, groupName }[]>` | EE user-group-membership-dal instance |
+| `orgDAL` | structural: `findOne / findOrgById / findMembership / createMembership / updateMembershipById / updateById` | community org-dal instance |
+| `userDAL / userAliasDAL / membershipRoleDAL` | `Pick`-shaped from community DAL types | community DALs (already instantiated) |
 | `emailDomainDAL` | structural: `findOne({ domain, status?, orgId? })` | EE email-domain-dal instance |
 | `orgSsoPermission` | adapter: `assertCan(perm, "read"\|"create"\|"edit")`, `ensureMember(perm)` — closes over EE permissionService + CASL enums | wiring adapter |
-| `groupOps` | adapter: `addUsersToGroupByUserIds({ userIds, group })`, `removeUsersFromGroupByUserIds({ userIds, group })` — closes over EE group-fns + supporting DALs | wiring adapter |
+| `groupOps` | adapter: `findByOrgId(orgId)`, `findGroupMembershipsByUserIdInOrg(userId, orgId)`, `addUsersToGroupByUserIds({ userIds, group })`, `removeUsersFromGroupByUserIds({ userIds, group })` — closes over EE group-dal, user-group-membership-dal, group-fns and their supporting DALs (membershipGroupDAL, projectDAL, projectKeyDAL, projectBotDAL) | wiring adapter |
 | `auditLog` | adapter: `createAuditLog({ actor, orgId, event })` with the two OIDC group event literals | wiring adapter over EE audit-log service |
 | `seatGuard` | adapter: `throwOnMemberLimitReached(orgId)`, `updateSubscriptionOrgMemberCount(orgId)` — closes over EE license-fns/service | wiring adapter |
 | `loginService` | `Pick<TAuthLoginFactory, "processProviderCallback">` | community `auth-login-service` |
