@@ -67,27 +67,24 @@ backend/src/server/routes/v1/oidc-sso-router.ts   # registerOidcSsoRouter
 
 The SSO module defines **its own minimal structural types** for injected deps; it never imports from `@app/ee/*`. Interfaces use method syntax (bivariant params) so the real services assign cleanly; a thin adapter lambda at the wiring site resolves any residual type friction (e.g., audit event unions).
 
-| Dependency | Contract (Pick-shaped) | Wired from |
+| Dependency | Contract | Wired from |
 |---|---|---|
-| `oidcConfigDAL` | `findOne / update / create` | new `sso-oidc-dal.ts` |
-| `orgDAL` | `findOne, findOrgById, findMembership, createMembership, updateMembershipById` | `services/org/org-dal` |
-| `userDAL` | `create, findOne, findById, find, updateById, findUserEncKeyByUserId, findUserEncKeyByUserIdsBatch, transaction` | `services/user/user-dal` |
-| `userAliasDAL` | `create, findOne` | `services/user-alias/user-alias-dal` |
-| `membershipRoleDAL` | `create` | `services/membership/membership-role-dal` |
-| `membershipGroupDAL` | `find` | `services/membership-group/membership-group-dal` |
-| `groupDAL` | `findByOrgId` | EE `group-dal` (wired already) |
-| `userGroupMembershipDAL` | `find, transaction, insertMany, findGroupMembershipsByUserIdInOrg, delete, filterProjectsByUserMembership` | EE `user-group-membership-dal` |
-| `projectKeyDAL / projectDAL / projectBotDAL` | per group-fns needs | community DALs |
-| `groupOps` | `{ addUsersToGroupByUserIds, removeUsersFromGroupByUserIds }` | EE `group-fns` via adapter |
-| `permissionService` | `getOrgPermission` | EE permission service (already wired) |
-| `auditLog` | `createAuditLog` (event type: own string literals) | EE audit-log service via adapter |
-| `seatGuard` | `(orgId) => Promise<void>` + `updateSubscriptionOrgMemberCount(orgId)` | EE `license-fns` / `license-service` via adapter |
-| `emailDomainDAL` | `findOne` | EE `email-domain-dal` |
-| `loginService` | `processProviderCallback` | community `auth-login-service` |
-| `tokenService` | `createTokenForUser` | community `auth-token-service` |
-| `smtpService` | `sendMail, verify` | community `smtp-service` |
-| `kmsService` | `createCipherPairWithDataKey` | community `kms-service` |
-| `telemetryService` | `sendPostHogEvents` | community `telemetry-service` |
+| `oidcConfigDAL` | `findOne / update / create` (own DAL type) | new `sso-oidc-dal.ts` |
+| `orgDAL / userDAL / userAliasDAL / membershipRoleDAL / membershipGroupDAL / projectDAL / projectBotDAL / projectKeyDAL` | `Pick`-shaped from community DAL types | community DALs (already instantiated) |
+| `groupDAL` | structural: `findByOrgId(orgId) => Promise<TGroups[]>` | EE group-dal instance |
+| `userGroupMembershipDAL` | structural: `findGroupMembershipsByUserIdInOrg(userId, orgId) => Promise<{ groupId, groupName }[]>` | EE user-group-membership-dal instance |
+| `emailDomainDAL` | structural: `findOne({ domain, status?, orgId? })` | EE email-domain-dal instance |
+| `orgSsoPermission` | adapter: `assertCan(perm, "read"\|"create"\|"edit")`, `ensureMember(perm)` — closes over EE permissionService + CASL enums | wiring adapter |
+| `groupOps` | adapter: `addUsersToGroupByUserIds({ userIds, group })`, `removeUsersFromGroupByUserIds({ userIds, group })` — closes over EE group-fns + supporting DALs | wiring adapter |
+| `auditLog` | adapter: `createAuditLog({ actor, orgId, event })` with the two OIDC group event literals | wiring adapter over EE audit-log service |
+| `seatGuard` | adapter: `throwOnMemberLimitReached(orgId)`, `updateSubscriptionOrgMemberCount(orgId)` — closes over EE license-fns/service | wiring adapter |
+| `loginService` | `Pick<TAuthLoginFactory, "processProviderCallback">` | community `auth-login-service` |
+| `tokenService` | `Pick<TAuthTokenServiceFactory, "createTokenForUser">` | community `auth-token-service` |
+| `smtpService` | `Pick<TSmtpService, "sendMail", "verify">` | community `smtp-service` |
+| `kmsService` | `Pick<TKmsServiceFactory, "createCipherPairWithDataKey">` | community `kms-service` |
+| `telemetryService` | `Pick<TTelemetryServiceFactory, "sendPostHogEvents">` | community `telemetry-service` |
+
+**Boundary rule (hard):** `services/sso-oidc/**` contains **zero** `@app/ee/*` imports — zero code imports, zero type imports. EE capabilities reach the module only through the four adapters (`orgSsoPermission`, `groupOps`, `auditLog`, `seatGuard`) plus structurally-typed DAL instances, all constructed in `server/routes/index.ts` (a community file that already imports EE today).
 
 Shared community helpers reused directly (imported, not injected): `getConfig`, `getServerCfg` + `LoginMethod`, `blockLocalAndPrivateIpAddresses`, `matchesAllowedEmailDomain`, `sanitizeEmail`, `validateEmail`, `requestMemoize`, `authAttemptCounter`, error classes. Email-domain ownership helpers are the exception — reimplemented locally (see note below), not imported from EE.
 
