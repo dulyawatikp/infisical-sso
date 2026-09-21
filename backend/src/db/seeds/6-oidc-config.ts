@@ -1,6 +1,7 @@
 import { Knex } from "knex";
 
-import { OIDCConfigurationType } from "@app/ee/services/oidc/oidc-config-types";
+import { OidcConfigurationType } from "@app/services/sso-oidc/sso-oidc-types";
+
 import { TableName } from "../schemas";
 
 const KEYCLOAK_ISSUER = process.env.PORTAL_SSO_KEYCLOAK_ISSUER || "https://keycloak.portal.ikp.rke2/realms/SSO";
@@ -16,7 +17,7 @@ export async function seed(knex: Knex): Promise<void> {
     await knex(TableName.OidcConfig).insert({
       orgId: org.id,
       isActive: true,
-      configurationType: OIDCConfigurationType.DISCOVERY_URL,
+      configurationType: OidcConfigurationType.DISCOVERY_URL,
       discoveryURL: DISCOVERY_URL,
       issuer: KEYCLOAK_ISSUER,
       allowedEmailDomains: null,
@@ -27,7 +28,7 @@ export async function seed(knex: Knex): Promise<void> {
   } else {
     await knex(TableName.OidcConfig).where({ orgId: org.id }).update({
       isActive: true,
-      configurationType: OIDCConfigurationType.DISCOVERY_URL,
+      configurationType: OidcConfigurationType.DISCOVERY_URL,
       discoveryURL: DISCOVERY_URL,
       issuer: KEYCLOAK_ISSUER,
       manageGroupMemberships: false

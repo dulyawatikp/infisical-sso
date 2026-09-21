@@ -29,7 +29,6 @@ import { registerKmipRouter } from "./kmip-router";
 import { registerKmipSpecRouter } from "./kmip-spec-router";
 import { registerLdapRouter } from "./ldap-router";
 import { registerLicenseRouter } from "./license-router";
-import { registerOidcRouter } from "./oidc-router";
 import { registerOrgRoleRouter } from "./org-role-router";
 import { registerPamAccountPolicyRouter } from "./pam-account-policy-router";
 import { PAM_ACCOUNT_REGISTER_ROUTER_MAP } from "./pam-account-routers";
@@ -152,7 +151,6 @@ export const registerV1EERoutes = async (server: FastifyZodProvider) => {
   await server.register(
     async (ssoRouter) => {
       await ssoRouter.register(registerSamlRouter);
-      await ssoRouter.register(registerOidcRouter, { prefix: "/oidc" });
     },
     { prefix: "/sso" }
   );

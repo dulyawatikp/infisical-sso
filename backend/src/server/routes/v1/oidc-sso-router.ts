@@ -79,11 +79,11 @@ export const registerOidcSsoRouter = async (server: FastifyZodProvider) => {
 
         await req.session.regenerate();
 
-        req.session.set<string>("oidcIdentifier", identifier);
-        req.session.set<string>("oidcIdentifierType", domain ? "domain" : "orgSlug");
+        req.session.set("oidcIdentifier", identifier);
+        req.session.set("oidcIdentifierType", domain ? "domain" : "orgSlug");
 
         if (callbackPort) {
-          req.session.set<string>("callbackPort", callbackPort);
+          req.session.set("callbackPort", callbackPort);
         }
 
         const oidcStrategy = await server.services.oidc.getOrgAuthStrategy(
@@ -107,9 +107,12 @@ export const registerOidcSsoRouter = async (server: FastifyZodProvider) => {
     method: "GET",
     preValidation: [
       async (req, res) => {
-        const oidcIdentifier = req.session.get<string>("oidcIdentifier");
-        const oidcIdentifierType = req.session.get<string>("oidcIdentifierType") || "domain";
-        const callbackPort = req.session.get<string>("callbackPort");
+        const oidcIdentifier = req.session.get("oidcIdentifier");
+        const oidcIdentifierType = req.session.get("oidcIdentifierType") || "domain";
+        const callbackPort = req.session.get("callbackPort");
+        if (!oidcIdentifier) {
+          throw new BadRequestError({ message: "Missing OIDC session identifier" });
+        }
         const oidcStrategy = await server.services.oidc.getOrgAuthStrategy(
           oidcIdentifier,
           oidcIdentifierType,
@@ -158,7 +161,7 @@ export const registerOidcSsoRouter = async (server: FastifyZodProvider) => {
     url: "/login/error",
     method: "GET",
     handler: async (req, res) => {
-      const failureMessage = req.session.get<string>("messages");
+      const failureMessage = req.session.get("messages");
       await req.session.destroy();
 
       return res.status(500).send({
@@ -296,8 +299,7 @@ export const registerOidcSsoRouter = async (server: FastifyZodProvider) => {
           organizationId: req.permission.orgId,
           properties: {
             provider: "oidc",
-            action: "update",
-            orgId: req.permission.orgId
+            action: "update"
           }
         })
         .catch((err) => logger.error(err, "Failed to send SSOConfigured telemetry event"));
@@ -413,8 +415,7 @@ export const registerOidcSsoRouter = async (server: FastifyZodProvider) => {
           organizationId: req.permission.orgId,
           properties: {
             provider: "oidc",
-            action: "create",
-            orgId: req.permission.orgId
+            action: "create"
           }
         })
         .catch((err) => logger.error(err, "Failed to send SSOConfigured telemetry event"));

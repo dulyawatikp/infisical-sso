@@ -1,10 +1,12 @@
 import { registerBddNockRouter } from "@bdd_routes/bdd-nock-router";
+import { ForbiddenError } from "@casl/ability";
 import type { ClickHouseClient } from "@clickhouse/client";
 import { CronJob } from "cron";
 import { Knex } from "knex";
 import { monitorEventLoopDelay } from "perf_hooks";
 import { z } from "zod";
 
+import { OrganizationActionScope } from "@app/db/schemas";
 import {
   registerMcpEndpointAuthServerMetadataRouter,
   registerMcpEndpointMetadataRouter,
@@ -40,6 +42,7 @@ import { clickhouseAuditLogDALFactory } from "@app/ee/services/audit-log/audit-l
 import { auditLogDALFactory } from "@app/ee/services/audit-log/audit-log-dal";
 import { auditLogQueueServiceFactory } from "@app/ee/services/audit-log/audit-log-queue";
 import { auditLogServiceFactory } from "@app/ee/services/audit-log/audit-log-service";
+import { EventType } from "@app/ee/services/audit-log/audit-log-types";
 import { auditLogStreamDALFactory } from "@app/ee/services/audit-log-stream/audit-log-stream-dal";
 import { auditLogStreamServiceFactory } from "@app/ee/services/audit-log-stream/audit-log-stream-service";
 import { certificateAuthorityCrlDALFactory } from "@app/ee/services/certificate-authority-crl/certificate-authority-crl-dal";
@@ -68,6 +71,7 @@ import { orgGatewayConfigV2DalFactory } from "@app/ee/services/gateway-v2/org-ga
 import { githubOrgSyncDALFactory } from "@app/ee/services/github-org-sync/github-org-sync-dal";
 import { githubOrgSyncServiceFactory } from "@app/ee/services/github-org-sync/github-org-sync-service";
 import { groupDALFactory } from "@app/ee/services/group/group-dal";
+import { addUsersToGroupByUserIds, removeUsersFromGroupByUserIds } from "@app/ee/services/group/group-fns";
 import { groupServiceFactory } from "@app/ee/services/group/group-service";
 import { identityGroupMembershipDALFactory } from "@app/ee/services/group/identity-group-membership-dal";
 import { userGroupMembershipDALFactory } from "@app/ee/services/group/user-group-membership-dal";
@@ -91,9 +95,8 @@ import { ldapConfigDALFactory } from "@app/ee/services/ldap-config/ldap-config-d
 import { ldapConfigServiceFactory } from "@app/ee/services/ldap-config/ldap-config-service";
 import { ldapGroupMapDALFactory } from "@app/ee/services/ldap-config/ldap-group-map-dal";
 import { licenseDALFactory } from "@app/ee/services/license/license-dal";
+import { throwOnPlanSeatLimitReached } from "@app/ee/services/license/license-fns";
 import { licenseServiceFactory } from "@app/ee/services/license/license-service";
-import { oidcConfigDALFactory } from "@app/ee/services/oidc/oidc-config-dal";
-import { oidcConfigServiceFactory } from "@app/ee/services/oidc/oidc-config-service";
 import { pamAccountDALFactory } from "@app/ee/services/pam-account/pam-account-dal";
 import { pamAccountServiceFactory } from "@app/ee/services/pam-account/pam-account-service";
 import { pamAccountPolicyDALFactory } from "@app/ee/services/pam-account-policy/pam-account-policy-dal";
@@ -125,6 +128,7 @@ import { pamSessionEventBatchDALFactory } from "@app/ee/services/pam-session/pam
 import { pamSessionEventChunkDALFactory } from "@app/ee/services/pam-session/pam-session-event-chunk-dal";
 import { pamSessionServiceFactory } from "@app/ee/services/pam-session/pam-session-service";
 import { pamWebAccessServiceFactory } from "@app/ee/services/pam-web-access/pam-web-access-service";
+import { OrgPermissionSsoActions, OrgPermissionSubjects } from "@app/ee/services/permission/org-permission";
 import { permissionDALFactory } from "@app/ee/services/permission/permission-dal";
 import { permissionServiceFactory } from "@app/ee/services/permission/permission-service";
 import { pitServiceFactory } from "@app/ee/services/pit/pit-service";
@@ -252,6 +256,7 @@ import { authDALFactory } from "@app/services/auth/auth-dal";
 import { authLoginServiceFactory } from "@app/services/auth/auth-login-service";
 import { authPaswordServiceFactory } from "@app/services/auth/auth-password-service";
 import { authSignupServiceFactory } from "@app/services/auth/auth-signup-service";
+import { ActorAuthMethod, ActorType } from "@app/services/auth/auth-type";
 import { tokenDALFactory } from "@app/services/auth-token/auth-token-dal";
 import { tokenServiceFactory } from "@app/services/auth-token/auth-token-service";
 import { certificateBodyDALFactory } from "@app/services/certificate/certificate-body-dal";
@@ -381,7 +386,6 @@ import { offlineUsageReportServiceFactory } from "@app/services/offline-usage-re
 import { incidentContactDALFactory } from "@app/services/org/incident-contacts-dal";
 import { orgDALFactory } from "@app/services/org/org-dal";
 import { orgServiceFactory } from "@app/services/org/org-service";
-import { portalSsoServiceFactory } from "@app/services/portal-sso/portal-sso-service";
 import { orgAdminServiceFactory } from "@app/services/org-admin/org-admin-service";
 import { orgAssetDALFactory } from "@app/services/org-asset/org-asset-dal";
 import { orgMembershipDALFactory } from "@app/services/org-membership/org-membership-dal";
@@ -407,6 +411,7 @@ import { pkiSyncQueueFactory } from "@app/services/pki-sync/pki-sync-queue";
 import { pkiSyncServiceFactory } from "@app/services/pki-sync/pki-sync-service";
 import { pkiTemplatesDALFactory } from "@app/services/pki-templates/pki-templates-dal";
 import { pkiTemplatesServiceFactory } from "@app/services/pki-templates/pki-templates-service";
+import { portalSsoServiceFactory } from "@app/services/portal-sso/portal-sso-service";
 import { projectDALFactory } from "@app/services/project/project-dal";
 import { projectQueueFactory } from "@app/services/project/project-queue";
 import { projectServiceFactory } from "@app/services/project/project-service";
@@ -460,6 +465,8 @@ import { projectSlackConfigDALFactory } from "@app/services/slack/project-slack-
 import { slackIntegrationDALFactory } from "@app/services/slack/slack-integration-dal";
 import { slackServiceFactory } from "@app/services/slack/slack-service";
 import { TSmtpService } from "@app/services/smtp/smtp-service";
+import { ssoOidcConfigDALFactory } from "@app/services/sso-oidc/sso-oidc-dal";
+import { ssoOidcServiceFactory } from "@app/services/sso-oidc/sso-oidc-service";
 import { invalidateCacheQueueFactory } from "@app/services/super-admin/invalidate-cache-queue";
 import { TSuperAdminDALFactory } from "@app/services/super-admin/super-admin-dal";
 import { getServerCfg, superAdminServiceFactory } from "@app/services/super-admin/super-admin-service";
@@ -471,6 +478,7 @@ import { totpServiceFactory } from "@app/services/totp/totp-service";
 import { userDALFactory } from "@app/services/user/user-dal";
 import { userServiceFactory } from "@app/services/user/user-service";
 import { userAliasDALFactory } from "@app/services/user-alias/user-alias-dal";
+import { UserAliasType } from "@app/services/user-alias/user-alias-types";
 import { userEngagementServiceFactory } from "@app/services/user-engagement/user-engagement-service";
 import { webAuthnCredentialDALFactory } from "@app/services/webauthn/webauthn-credential-dal";
 import { webAuthnServiceFactory } from "@app/services/webauthn/webauthn-service";
@@ -606,7 +614,7 @@ export const registerRoutes = async (
   const ldapConfigDAL = ldapConfigDALFactory(db);
   const ldapGroupMapDAL = ldapGroupMapDALFactory(db);
 
-  const oidcConfigDAL = oidcConfigDALFactory(db);
+  const ssoOidcConfigDAL = ssoOidcConfigDALFactory(db);
   const accessApprovalPolicyDAL = accessApprovalPolicyDALFactory(db);
   const accessApprovalRequestDAL = accessApprovalRequestDALFactory(db);
   const accessApprovalPolicyApproverDAL = accessApprovalPolicyApproverDALFactory(db);
@@ -894,7 +902,7 @@ export const registerRoutes = async (
     projectKeyDAL,
     permissionService,
     licenseService,
-    oidcConfigDAL,
+    oidcConfigDAL: ssoOidcConfigDAL,
     membershipGroupDAL,
     membershipRoleDAL
   });
@@ -1123,7 +1131,7 @@ export const registerRoutes = async (
     smtpService,
     userDAL,
     groupDAL,
-    oidcConfigDAL,
+    oidcConfigDAL: ssoOidcConfigDAL,
     ldapConfigDAL,
     loginService,
     projectBotService,
@@ -2254,26 +2262,105 @@ export const registerRoutes = async (
     pkiAlertService
   });
 
-  const oidcService = oidcConfigServiceFactory({
-    orgDAL,
+  const oidcService = ssoOidcServiceFactory({
+    ssoOidcConfigDAL,
+    orgDAL: {
+      findOne: (filter) => orgDAL.findOne(filter),
+      findOrgById: (orgId) => orgDAL.findOrgById(orgId),
+      findMembership: (filter, opts) =>
+        orgDAL.findMembership(filter as Parameters<typeof orgDAL.findMembership>[0], opts),
+      createMembership: (data, tx) =>
+        orgDAL.createMembership(data as Parameters<typeof orgDAL.createMembership>[0], tx),
+      updateById: (id, data) => orgDAL.updateById(id, data as Parameters<typeof orgDAL.updateById>[1])
+    },
     userDAL,
     userAliasDAL,
-    licenseService,
+    membershipRoleDAL,
+    groupOps: {
+      findByOrgId: (orgId) => groupDAL.findByOrgId(orgId),
+      findGroupMembershipsByUserIdInOrg: (userId, orgId) =>
+        userGroupMembershipDAL.findGroupMembershipsByUserIdInOrg(userId, orgId),
+      addUsersToGroupByUserIds: async ({ userIds, group }) => {
+        await addUsersToGroupByUserIds({
+          userIds,
+          group: group as Parameters<typeof addUsersToGroupByUserIds>[0]["group"],
+          userDAL,
+          userGroupMembershipDAL,
+          orgDAL,
+          membershipGroupDAL,
+          projectKeyDAL,
+          projectDAL,
+          projectBotDAL
+        });
+      },
+      removeUsersFromGroupByUserIds: async ({ userIds, group }) => {
+        await removeUsersFromGroupByUserIds({
+          userIds,
+          group: group as Parameters<typeof removeUsersFromGroupByUserIds>[0]["group"],
+          userDAL,
+          userGroupMembershipDAL,
+          membershipGroupDAL,
+          projectKeyDAL
+        });
+      }
+    },
+    orgSsoPermission: {
+      assertCan: async (perm, action) => {
+        const ssoActionByAction = {
+          read: OrgPermissionSsoActions.Read,
+          create: OrgPermissionSsoActions.Create,
+          edit: OrgPermissionSsoActions.Edit
+        } as const;
+        const { permission } = await permissionService.getOrgPermission({
+          actorId: perm.actorId,
+          actor: perm.actor as ActorType,
+          orgId: perm.orgId,
+          actorOrgId: perm.actorOrgId,
+          actorAuthMethod: perm.actorAuthMethod as ActorAuthMethod,
+          scope: OrganizationActionScope.ParentOrganization
+        });
+        ForbiddenError.from(permission).throwUnlessCan(ssoActionByAction[action], OrgPermissionSubjects.Sso);
+      },
+      ensureMember: async (perm) => {
+        await permissionService.getOrgPermission({
+          actorId: perm.actorId,
+          actor: ActorType.USER,
+          orgId: perm.orgId,
+          actorOrgId: perm.actorOrgId,
+          actorAuthMethod: perm.actorAuthMethod as ActorAuthMethod,
+          scope: OrganizationActionScope.ParentOrganization
+        });
+      }
+    },
+    auditLog: {
+      createAuditLog: (arg) =>
+        auditLogService.createAuditLog({
+          actor: {
+            type: ActorType.PLATFORM,
+            metadata: {}
+          },
+          orgId: arg.orgId,
+          event:
+            arg.event.type === "oidc-group-membership-mapping-assign-user"
+              ? {
+                  type: EventType.OIDC_GROUP_MEMBERSHIP_MAPPING_ASSIGN_USER,
+                  metadata: arg.event.metadata as never
+                }
+              : {
+                  type: EventType.OIDC_GROUP_MEMBERSHIP_MAPPING_REMOVE_USER,
+                  metadata: arg.event.metadata as never
+                }
+        })
+    },
+    seatGuard: {
+      throwOnMemberLimitReached: (orgId) => throwOnPlanSeatLimitReached(licenseService, orgId, UserAliasType.OIDC),
+      updateSubscriptionOrgMemberCount: (orgId) => licenseService.updateSubscriptionOrgMemberCount(orgId)
+    },
+    emailDomainDAL,
+    loginService,
     tokenService,
     smtpService,
     kmsService,
-    permissionService,
-    oidcConfigDAL,
-    projectBotDAL,
-    projectKeyDAL,
-    projectDAL,
-    userGroupMembershipDAL,
-    groupDAL,
-    auditLogService,
-    membershipGroupDAL,
-    membershipRoleDAL,
-    loginService,
-    emailDomainDAL,
     telemetryService
   });
 

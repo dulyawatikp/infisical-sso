@@ -12,7 +12,6 @@ import RedisStore from "connect-redis";
 import { z } from "zod";
 
 import { OidcConfigsSchema } from "@app/db/schemas";
-import { OIDCConfigurationType, OIDCJWTSignatureAlgorithm } from "@app/ee/services/oidc/oidc-config-types";
 import { ApiDocsTags, OidcSSo } from "@app/lib/api-docs";
 import { getConfig } from "@app/lib/config/env";
 import { BadRequestError } from "@app/lib/errors";
@@ -22,6 +21,7 @@ import { addAuthOriginDomainCookie } from "@app/server/lib/cookie";
 import { getTelemetryDistinctId } from "@app/server/lib/telemetry";
 import { verifyAuth } from "@app/server/plugins/auth/verify-auth";
 import { AuthMode, ProviderAuthResult } from "@app/services/auth/auth-type";
+import { OidcConfigurationType, OidcJwtSignatureAlgorithm } from "@app/services/sso-oidc/sso-oidc-types";
 import { PostHogEventTypes } from "@app/services/telemetry/telemetry-types";
 
 const SanitizedOidcConfigSchema = OidcConfigsSchema.pick({
@@ -269,7 +269,7 @@ export const registerOidcRouter = async (server: FastifyZodProvider) => {
             })
             .describe(OidcSSo.UPDATE_CONFIG.allowedEmailDomains),
           discoveryURL: z.string().trim().describe(OidcSSo.UPDATE_CONFIG.discoveryURL),
-          configurationType: z.nativeEnum(OIDCConfigurationType).describe(OidcSSo.UPDATE_CONFIG.configurationType),
+          configurationType: z.nativeEnum(OidcConfigurationType).describe(OidcSSo.UPDATE_CONFIG.configurationType),
           issuer: z.string().trim().describe(OidcSSo.UPDATE_CONFIG.issuer),
           authorizationEndpoint: z.string().trim().describe(OidcSSo.UPDATE_CONFIG.authorizationEndpoint),
           jwksUri: z.string().trim().describe(OidcSSo.UPDATE_CONFIG.jwksUri),
@@ -280,7 +280,7 @@ export const registerOidcRouter = async (server: FastifyZodProvider) => {
           isActive: z.boolean().describe(OidcSSo.UPDATE_CONFIG.isActive),
           manageGroupMemberships: z.boolean().optional().describe(OidcSSo.UPDATE_CONFIG.manageGroupMemberships),
           jwtSignatureAlgorithm: z
-            .nativeEnum(OIDCJWTSignatureAlgorithm)
+            .nativeEnum(OidcJwtSignatureAlgorithm)
             .optional()
             .describe(OidcSSo.UPDATE_CONFIG.jwtSignatureAlgorithm)
         })
@@ -360,7 +360,7 @@ export const registerOidcRouter = async (server: FastifyZodProvider) => {
                 .join(", ");
             })
             .describe(OidcSSo.CREATE_CONFIG.allowedEmailDomains),
-          configurationType: z.nativeEnum(OIDCConfigurationType).describe(OidcSSo.CREATE_CONFIG.configurationType),
+          configurationType: z.nativeEnum(OidcConfigurationType).describe(OidcSSo.CREATE_CONFIG.configurationType),
           issuer: z.string().trim().optional().default("").describe(OidcSSo.CREATE_CONFIG.issuer),
           discoveryURL: z.string().trim().optional().default("").describe(OidcSSo.CREATE_CONFIG.discoveryURL),
           authorizationEndpoint: z
@@ -382,13 +382,13 @@ export const registerOidcRouter = async (server: FastifyZodProvider) => {
             .default(false)
             .describe(OidcSSo.CREATE_CONFIG.manageGroupMemberships),
           jwtSignatureAlgorithm: z
-            .nativeEnum(OIDCJWTSignatureAlgorithm)
+            .nativeEnum(OidcJwtSignatureAlgorithm)
             .optional()
-            .default(OIDCJWTSignatureAlgorithm.RS256)
+            .default(OidcJwtSignatureAlgorithm.RS256)
             .describe(OidcSSo.CREATE_CONFIG.jwtSignatureAlgorithm)
         })
         .superRefine((data, ctx) => {
-          if (data.configurationType === OIDCConfigurationType.CUSTOM) {
+          if (data.configurationType === OidcConfigurationType.CUSTOM) {
             if (!data.issuer) {
               ctx.addIssue({
                 path: ["issuer"],

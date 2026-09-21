@@ -15,7 +15,6 @@ import { TGroupDALFactory } from "@app/ee/services/group/group-dal";
 import { TUserGroupMembershipDALFactory } from "@app/ee/services/group/user-group-membership-dal";
 import { TLdapConfigDALFactory } from "@app/ee/services/ldap-config/ldap-config-dal";
 import { TLicenseServiceFactory } from "@app/ee/services/license/license-service";
-import { TOidcConfigDALFactory } from "@app/ee/services/oidc/oidc-config-dal";
 import {
   OrgPermissionActions,
   OrgPermissionGroupActions,
@@ -38,6 +37,7 @@ import { requestMemoize } from "@app/lib/request-context/request-memoizer";
 import { QueueName } from "@app/queue";
 import { getDefaultOrgMembershipRoleForUpdateOrg } from "@app/services/org/org-role-fns";
 import { TOrgMembershipDALFactory } from "@app/services/org-membership/org-membership-dal";
+import { TSsoOidcConfigDALFactory } from "@app/services/sso-oidc/sso-oidc-dal";
 import { TUserAliasDALFactory } from "@app/services/user-alias/user-alias-dal";
 
 import { TAdditionalPrivilegeDALFactory } from "../additional-privilege/additional-privilege-dal";
@@ -104,7 +104,7 @@ type TOrgServiceFactoryDep = {
   membershipRoleDAL: TMembershipRoleDALFactory;
   incidentContactDAL: TIncidentContactsDALFactory;
   samlConfigDAL: Pick<TSamlConfigDALFactory, "findOne">;
-  oidcConfigDAL: Pick<TOidcConfigDALFactory, "findOne">;
+  oidcConfigDAL: Pick<TSsoOidcConfigDALFactory, "findOne">;
   ldapConfigDAL: Pick<TLdapConfigDALFactory, "findOne">;
   smtpService: TSmtpService;
   tokenService: TAuthTokenServiceFactory;

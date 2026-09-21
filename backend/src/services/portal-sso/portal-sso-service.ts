@@ -1,7 +1,7 @@
-import { TOidcConfigServiceFactory } from "@app/ee/services/oidc/oidc-config-service";
 import { getConfig } from "@app/lib/config/env";
 import { UnauthorizedError } from "@app/lib/errors";
 import { TOrgDALFactory } from "@app/services/org/org-dal";
+import { TSsoOidcServiceFactory } from "@app/services/sso-oidc/sso-oidc-service";
 
 type TPortalMeResponse = {
   sub: string;
@@ -12,7 +12,7 @@ type TPortalMeResponse = {
 };
 
 export type TPortalSsoServiceFactoryDep = {
-  oidcConfigService: Pick<TOidcConfigServiceFactory, "oidcLogin">;
+  oidcConfigService: Pick<TSsoOidcServiceFactory, "oidcLogin">;
   orgDAL: Pick<TOrgDALFactory, "findOne">;
 };
 

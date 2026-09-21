@@ -32,7 +32,6 @@ import { TKmipOperationServiceFactory } from "@app/ee/services/kmip/kmip-operati
 import { TKmipServiceFactory } from "@app/ee/services/kmip/kmip-service";
 import { TLdapConfigServiceFactory } from "@app/ee/services/ldap-config/ldap-config-service";
 import { TLicenseServiceFactory } from "@app/ee/services/license/license-service";
-import { TOidcConfigServiceFactory } from "@app/ee/services/oidc/oidc-config-service";
 import { TPamAccountServiceFactory } from "@app/ee/services/pam-account/pam-account-service";
 import { TPamAccountPolicyServiceFactory } from "@app/ee/services/pam-account-policy/pam-account-policy-service";
 import { TPamDiscoverySourceServiceFactory } from "@app/ee/services/pam-discovery/pam-discovery-source-service";
@@ -132,7 +131,6 @@ import { TMicrosoftTeamsServiceFactory } from "@app/services/microsoft-teams/mic
 import { TNotificationServiceFactory } from "@app/services/notification/notification-service";
 import { TOfflineUsageReportServiceFactory } from "@app/services/offline-usage-report/offline-usage-report-service";
 import { TOrgServiceFactory } from "@app/services/org/org-service";
-import { TPortalSsoServiceFactory } from "@app/services/portal-sso/portal-sso-service";
 import { TOrgAdminServiceFactory } from "@app/services/org-admin/org-admin-service";
 import { TPkiAlertServiceFactory } from "@app/services/pki-alert/pki-alert-service";
 import { TPkiAlertV2ServiceFactory } from "@app/services/pki-alert-v2/pki-alert-v2-service";
@@ -140,6 +138,7 @@ import { TPkiCollectionServiceFactory } from "@app/services/pki-collection/pki-c
 import { TPkiSubscriberServiceFactory } from "@app/services/pki-subscriber/pki-subscriber-service";
 import { TPkiSyncServiceFactory } from "@app/services/pki-sync/pki-sync-service";
 import { TPkiTemplatesServiceFactory } from "@app/services/pki-templates/pki-templates-service";
+import { TPortalSsoServiceFactory } from "@app/services/portal-sso/portal-sso-service";
 import { TProjectServiceFactory } from "@app/services/project/project-service";
 import { TProjectBotServiceFactory } from "@app/services/project-bot/project-bot-service";
 import { TProjectEnvServiceFactory } from "@app/services/project-env/project-env-service";
@@ -159,6 +158,7 @@ import { TSecretValidationRuleServiceFactory } from "@app/services/secret-valida
 import { TServiceTokenServiceFactory } from "@app/services/service-token/service-token-service";
 import { TSignerServiceFactory } from "@app/services/signer/signer-service";
 import { TSlackServiceFactory } from "@app/services/slack/slack-service";
+import { TSsoOidcServiceFactory } from "@app/services/sso-oidc/sso-oidc-service";
 import { TSuperAdminServiceFactory } from "@app/services/super-admin/super-admin-service";
 import { TTelemetryServiceFactory } from "@app/services/telemetry/telemetry-service";
 import { TTotpServiceFactory } from "@app/services/totp/totp-service";
@@ -216,6 +216,9 @@ declare module "fastify" {
   interface Session {
     callbackPort: string;
     isAdminLogin: boolean;
+    messages?: string[];
+    oidcIdentifier: string;
+    oidcIdentifierType: "domain" | "orgSlug";
     orgSlug?: string;
   }
 
@@ -270,7 +273,7 @@ declare module "fastify" {
       authToken: TAuthTokenServiceFactory;
       permission: TPermissionServiceFactory;
       org: TOrgServiceFactory;
-      oidc: TOidcConfigServiceFactory;
+      oidc: TSsoOidcServiceFactory;
       portalSso: TPortalSsoServiceFactory;
       superAdmin: TSuperAdminServiceFactory;
       user: TUserServiceFactory;
