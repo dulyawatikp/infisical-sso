@@ -71,7 +71,7 @@ export type TOidcLoginDTO = {
 };
 
 // Structural contracts for capabilities injected at wiring time.
-// The service module must never import @app/ee/* — see spec §4.2.
+// The service module must never import enterprise-only modules — see spec §4.2.
 
 export type TOidcSsoGroupMembership = {
   groupId: string;
