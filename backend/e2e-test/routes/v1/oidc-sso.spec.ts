@@ -32,26 +32,26 @@ describe("OIDC SSO V1 Router", async () => {
     expect([400, 422]).toContain(res.statusCode);
   });
 
-  test("POST + GET + PATCH + DELETE-cycle config with discovery type", async () => {
-    const createRes = await testServer.inject({
-      method: "POST",
+  test("PATCH + GET roundtrip on seeded config", async () => {
+    // Seed 6-oidc-config.ts already created a config row for ORG_ID (orgId is unique) with
+    // empty-buffer credentials, so PATCH credentials onto the seeded row instead of POSTing
+    // a second config. discoveryURL must be a publicly resolvable domain: updateOidcCfg
+    // SSRF-checks it via dns.lookup when not in development mode.
+    const patchRes = await testServer.inject({
+      method: "PATCH",
       url: "/api/v1/sso/oidc/config",
       headers: authHeader,
       payload: {
         organizationId: ORG_ID,
-        configurationType: OidcConfigurationType.DISCOVERY_URL,
-        discoveryURL: "https://idp.example.com/.well-known/openid-configuration",
         clientId: "cid",
         clientSecret: "csecret",
+        discoveryURL: "https://example.com/.well-known/openid-configuration",
+        configurationType: OidcConfigurationType.DISCOVERY_URL,
         isActive: false,
-        manageGroupMemberships: true,
-        jwtSignatureAlgorithm: OidcJwtSignatureAlgorithm.RS256
+        manageGroupMemberships: true
       }
     });
-    expect(createRes.statusCode).toBe(200);
-    const created = JSON.parse(createRes.payload);
-    expect(created).toMatchObject({ orgId: ORG_ID, isActive: false, manageGroupMemberships: true });
-    expect(created.clientId).toBeUndefined(); // create response is sanitized
+    expect(patchRes.statusCode).toBe(200);
 
     const getRes = await testServer.inject({
       method: "GET",
@@ -62,29 +62,31 @@ describe("OIDC SSO V1 Router", async () => {
     const got = JSON.parse(getRes.payload);
     expect(got.clientId).toBe("cid"); // get response decrypts credentials
     expect(got.clientSecret).toBe("csecret");
+    expect(got.discoveryURL).toBe("https://example.com/.well-known/openid-configuration");
+    expect(got.isActive).toBe(false);
+    expect(got.manageGroupMemberships).toBe(true);
 
-    const patchRes = await testServer.inject({
+    const domainsRes = await testServer.inject({
       method: "PATCH",
       url: "/api/v1/sso/oidc/config",
       headers: authHeader,
       payload: {
         organizationId: ORG_ID,
-        isActive: true,
         allowedEmailDomains: "example.com, test.io , foo.dev"
       }
     });
-    expect(patchRes.statusCode).toBe(200);
-    const patched = JSON.parse(patchRes.payload);
-    expect(patched.isActive).toBe(true);
+    expect(domainsRes.statusCode).toBe(200);
+    const patched = JSON.parse(domainsRes.payload);
     expect(patched.allowedEmailDomains).toBe("example.com, test.io, foo.dev");
 
-    // reset to inactive so the shared seed org is not left with SSO enabled
-    await testServer.inject({
+    // reset so the shared seed org is not left with SSO config values
+    const resetRes = await testServer.inject({
       method: "PATCH",
       url: "/api/v1/sso/oidc/config",
       headers: authHeader,
-      payload: { organizationId: ORG_ID, isActive: false }
+      payload: { organizationId: ORG_ID, isActive: false, allowedEmailDomains: "" }
     });
+    expect(resetRes.statusCode).toBe(200);
   });
 
   test("GET manage-group-memberships returns isEnabled flag", async () => {
