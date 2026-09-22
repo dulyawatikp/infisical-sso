@@ -217,6 +217,8 @@ Enterprise code lives in `src/ee/`:
 
 EE routes register before community routes so they can override/extend endpoints. Feature gating via license service (`src/ee/services/license/license-service.ts`) which validates online/offline licenses, caches feature sets in keystore with 5-minute TTL, and exposes `getPlan()` to check feature availability.
 
+OIDC SSO is implemented in `src/services/sso-oidc/` (community code, served at `/api/v1/sso/oidc/*`); `src/ee/services/oidc/` is legacy and unwired.
+
 ### Server Plugins
 
 Key plugins in `src/server/plugins/`:
