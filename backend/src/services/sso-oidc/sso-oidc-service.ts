@@ -445,6 +445,16 @@ export const ssoOidcServiceFactory = ({
       });
     }
 
+    if (dto.isActive) {
+      const isSmtpConnected = await smtpService.verify();
+      if (!isSmtpConnected) {
+        throw new BadRequestError({
+          message:
+            "Cannot enable OIDC when there are issues with the instance's SMTP configuration. Bypass this by turning on trust for OIDC emails in the server admin console."
+        });
+      }
+    }
+
     if (dto.discoveryURL) await blockLocalAndPrivateIpAddresses(dto.discoveryURL);
     if (dto.jwksUri) await blockLocalAndPrivateIpAddresses(dto.jwksUri);
     if (dto.tokenEndpoint) await blockLocalAndPrivateIpAddresses(dto.tokenEndpoint);

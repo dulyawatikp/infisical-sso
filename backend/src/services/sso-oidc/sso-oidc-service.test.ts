@@ -1,6 +1,7 @@
 import { Issuer } from "openid-client";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
+import { BadRequestError } from "@app/lib/errors";
 import { blockLocalAndPrivateIpAddresses } from "@app/lib/validator";
 
 import { ssoOidcServiceFactory } from "./sso-oidc-service";
@@ -34,6 +35,55 @@ describe("ssoOidcServiceFactory", () => {
     vi.clearAllMocks();
     vi.mocked(blockLocalAndPrivateIpAddresses).mockResolvedValue(undefined);
   });
+
+  const createUpdateService = (isSmtpConnected: boolean) => {
+    const updatedConfig = { id: "oidc-config-id" };
+    const update = vi.fn().mockResolvedValue([updatedConfig]);
+    const updateById = vi.fn().mockResolvedValue(undefined);
+    const verify = vi.fn().mockResolvedValue(isSmtpConnected);
+    const service = ssoOidcServiceFactory({
+      ssoOidcConfigDAL: { update } as never,
+      orgDAL: {
+        findOne: vi.fn().mockResolvedValue({
+          id: orgId,
+          name: "Test Org",
+          slug: "test-org",
+          rootOrgId: null,
+          defaultMembershipRole: "member",
+          googleSsoAuthEnforced: false,
+          authEnforced: false,
+          scimEnabled: false
+        }),
+        updateById
+      } as never,
+      userDAL: {} as never,
+      userAliasDAL: {} as never,
+      membershipRoleDAL: {} as never,
+      groupOps: {} as never,
+      orgSsoPermission: { assertCan: vi.fn().mockResolvedValue(undefined) } as never,
+      auditLog: {} as never,
+      seatGuard: {} as never,
+      emailDomainDAL: {} as never,
+      loginService: {} as never,
+      tokenService: {} as never,
+      smtpService: { verify } as never,
+      kmsService: {
+        createCipherPairWithDataKey: vi.fn().mockResolvedValue({ encryptor: vi.fn() })
+      } as never,
+      telemetryService: {} as never
+    });
+
+    return { service, update, updatedConfig, verify };
+  };
+
+  const activeUpdateDto = {
+    organizationId: orgId,
+    isActive: true,
+    actor: "user",
+    actorId: "user-id",
+    actorOrgId: orgId,
+    actorAuthMethod: "email"
+  } as const;
 
   test("validates discovered provider endpoints before constructing the OIDC strategy", async () => {
     const issuer = new Issuer({
@@ -95,5 +145,33 @@ describe("ssoOidcServiceFactory", () => {
     expect(blockLocalAndPrivateIpAddresses).toHaveBeenNthCalledWith(2, discoveredEndpoints.jwks_uri);
     expect(blockLocalAndPrivateIpAddresses).toHaveBeenNthCalledWith(3, discoveredEndpoints.token_endpoint);
     expect(blockLocalAndPrivateIpAddresses).toHaveBeenNthCalledWith(4, discoveredEndpoints.userinfo_endpoint);
+  });
+
+  test("rejects OIDC activation when SMTP verification fails", async () => {
+    const { service, update, verify } = createUpdateService(false);
+
+    let thrownError: unknown;
+    try {
+      await service.updateOidcCfg(activeUpdateDto as never);
+    } catch (error) {
+      thrownError = error;
+    }
+
+    expect(verify).toHaveBeenCalledOnce();
+    expect(update).not.toHaveBeenCalled();
+    expect(thrownError).toBeInstanceOf(BadRequestError);
+    expect(thrownError).toMatchObject({
+      message:
+        "Cannot enable OIDC when there are issues with the instance's SMTP configuration. Bypass this by turning on trust for OIDC emails in the server admin console."
+    });
+  });
+
+  test("continues OIDC activation when SMTP verification succeeds", async () => {
+    const { service, update, updatedConfig, verify } = createUpdateService(true);
+
+    await expect(service.updateOidcCfg(activeUpdateDto as never)).resolves.toEqual(updatedConfig);
+
+    expect(verify).toHaveBeenCalledOnce();
+    expect(update).toHaveBeenCalledOnce();
   });
 });
