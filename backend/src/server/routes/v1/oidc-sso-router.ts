@@ -107,12 +107,9 @@ export const registerOidcSsoRouter = async (server: FastifyZodProvider) => {
     method: "GET",
     preValidation: [
       async (req, res) => {
-        const oidcIdentifier = req.session.get("oidcIdentifier");
+        const oidcIdentifier = req.session.get("oidcIdentifier") as string;
         const oidcIdentifierType = req.session.get("oidcIdentifierType") || "domain";
         const callbackPort = req.session.get("callbackPort");
-        if (!oidcIdentifier) {
-          throw new BadRequestError({ message: "Missing OIDC session identifier" });
-        }
         const oidcStrategy = await server.services.oidc.getOrgAuthStrategy(
           oidcIdentifier,
           oidcIdentifierType,
@@ -292,16 +289,19 @@ export const registerOidcSsoRouter = async (server: FastifyZodProvider) => {
         ...req.body
       });
 
+      const ssoConfiguredEvent = {
+        event: PostHogEventTypes.SSOConfigured,
+        distinctId: getTelemetryDistinctId(req),
+        organizationId: req.permission.orgId,
+        properties: {
+          provider: "oidc",
+          action: "update",
+          orgId: req.permission.orgId
+        }
+      } as const;
+
       void server.services.telemetry
-        .sendPostHogEvents({
-          event: PostHogEventTypes.SSOConfigured,
-          distinctId: getTelemetryDistinctId(req),
-          organizationId: req.permission.orgId,
-          properties: {
-            provider: "oidc",
-            action: "update"
-          }
-        })
+        .sendPostHogEvents(ssoConfiguredEvent)
         .catch((err) => logger.error(err, "Failed to send SSOConfigured telemetry event"));
 
       return oidc;
@@ -408,16 +408,19 @@ export const registerOidcSsoRouter = async (server: FastifyZodProvider) => {
         ...req.body
       });
 
+      const ssoConfiguredEvent = {
+        event: PostHogEventTypes.SSOConfigured,
+        distinctId: getTelemetryDistinctId(req),
+        organizationId: req.permission.orgId,
+        properties: {
+          provider: "oidc",
+          action: "create",
+          orgId: req.permission.orgId
+        }
+      } as const;
+
       void server.services.telemetry
-        .sendPostHogEvents({
-          event: PostHogEventTypes.SSOConfigured,
-          distinctId: getTelemetryDistinctId(req),
-          organizationId: req.permission.orgId,
-          properties: {
-            provider: "oidc",
-            action: "create"
-          }
-        })
+        .sendPostHogEvents(ssoConfiguredEvent)
         .catch((err) => logger.error(err, "Failed to send SSOConfigured telemetry event"));
 
       return oidc;

@@ -1,6 +1,7 @@
 import type { Knex } from "knex";
 
 import { TGenericPermission } from "@app/lib/types";
+import { TOrgDALFactory } from "@app/services/org/org-dal";
 
 export enum OidcConfigurationType {
   CUSTOM = "custom",
@@ -95,26 +96,18 @@ export type TOidcSsoEmailDomainDAL = {
   }) => Promise<{ orgId: string; domain: string } | undefined>;
 };
 
-type TOidcSsoOrg = {
-  id: string;
-  name: string;
-  slug: string | null;
-  rootOrgId?: string | null;
-  defaultMembershipRole: string;
-  googleSsoAuthEnforced?: boolean | null;
-  authEnforced?: boolean | null;
-  scimEnabled?: boolean | null;
-};
-
 export type TOidcSsoOrgDAL = {
-  findOne: (filter: { id?: string; slug?: string; rootOrgId?: string | null }) => Promise<TOidcSsoOrg | undefined>;
-  findOrgById: (orgId: string, tx?: Knex) => Promise<TOidcSsoOrg | undefined>;
-  findMembership: (
+  findOne: (
+    filter: Parameters<TOrgDALFactory["findOne"]>[0]
+  ) => Promise<Awaited<ReturnType<TOrgDALFactory["findOne"]>> | undefined>;
+  findOrgById: TOrgDALFactory["findOrgById"];
+  findMembership(
     filter: Record<string, unknown>,
-    opts?: { tx?: Knex }
-  ) => Promise<Array<{ id: string; isActive: boolean }>>;
-  createMembership: (data: Record<string, unknown>, tx?: Knex) => Promise<{ id: string }>;
-  updateById: (id: string, data: Record<string, unknown>) => Promise<unknown>;
+    opts?: Parameters<TOrgDALFactory["findMembership"]>[1]
+  ): ReturnType<TOrgDALFactory["findMembership"]>;
+  createMembership: TOrgDALFactory["createMembership"];
+  updateMembershipById: TOrgDALFactory["updateMembershipById"];
+  updateById: TOrgDALFactory["updateById"];
 };
 
 // userDAL / userAliasDAL are injected as community Pick types (see spec §4.2):

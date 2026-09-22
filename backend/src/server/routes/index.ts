@@ -2264,15 +2264,7 @@ export const registerRoutes = async (
 
   const oidcService = ssoOidcServiceFactory({
     ssoOidcConfigDAL,
-    orgDAL: {
-      findOne: (filter) => orgDAL.findOne(filter),
-      findOrgById: (orgId) => orgDAL.findOrgById(orgId),
-      findMembership: (filter, opts) =>
-        orgDAL.findMembership(filter as Parameters<typeof orgDAL.findMembership>[0], opts),
-      createMembership: (data, tx) =>
-        orgDAL.createMembership(data as Parameters<typeof orgDAL.createMembership>[0], tx),
-      updateById: (id, data) => orgDAL.updateById(id, data as Parameters<typeof orgDAL.updateById>[1])
-    },
+    orgDAL,
     userDAL,
     userAliasDAL,
     membershipRoleDAL,
