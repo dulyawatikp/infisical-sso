@@ -6,7 +6,7 @@ infisical:
   replicaCount: 1
   image:
     repository: ghcr.io/dulyawatikp/infisical-sso
-    tag: "bdc6b73e97"
+    tag: "379ef4ec45"
     pullPolicy: IfNotPresent
     imagePullSecrets:
       - name: ghcr-pull-secret
