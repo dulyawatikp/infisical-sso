@@ -180,12 +180,16 @@ export const ssoOidcServiceFactory = ({
     if (userAlias) {
       // Existing alias branch — spec §5.4 step 6. NOTE: no seat check here (documented quirk).
       user = await userDAL.transaction(async (tx) => {
-        const foundUser = await userDAL.findById(userAlias.userId, tx);
+        let foundUser = await userDAL.findById(userAlias.userId, tx);
         if (!trustPortalIdentity) {
           await verifyEmailDomainOwnershipInOrg({ email: foundUser.username ?? "", orgId, emailDomainDAL });
-        } else if (!userAlias.isEmailVerified || !foundUser.isAccepted) {
-          await userDAL.updateById(foundUser.id, { isEmailVerified: true, isAccepted: true }, tx);
-          userAlias = await userAliasDAL.updateById(userAlias.id, { isEmailVerified: true }, tx);
+        } else {
+          if (!foundUser.isEmailVerified || !foundUser.isAccepted) {
+            foundUser = await userDAL.updateById(foundUser.id, { isEmailVerified: true, isAccepted: true }, tx);
+          }
+          if (!userAlias.isEmailVerified) {
+            userAlias = await userAliasDAL.updateById(userAlias.id, { isEmailVerified: true }, tx);
+          }
         }
 
         const [orgMembership] = await orgDAL.findMembership(

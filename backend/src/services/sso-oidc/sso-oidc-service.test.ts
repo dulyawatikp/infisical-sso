@@ -311,4 +311,71 @@ describe("ssoOidcServiceFactory", () => {
 
     expect(processProviderCallback).not.toHaveBeenCalled();
   });
+
+  test("portal login re-verifies an existing unverified alias and user", async () => {
+    const unverifiedUser = {
+      id: "user-id",
+      email: "u@portal.local",
+      username: "u@portal.local",
+      isEmailVerified: false,
+      isAccepted: false
+    };
+    const unverifiedAlias = { id: "alias-id", userId: "user-id", isEmailVerified: false };
+    const updatedUser = { ...unverifiedUser, isEmailVerified: true, isAccepted: true };
+    const updatedAlias = { ...unverifiedAlias, isEmailVerified: true };
+    const userUpdateById = vi.fn().mockResolvedValue(updatedUser);
+    const aliasUpdateById = vi.fn().mockResolvedValue(updatedAlias);
+    const processProviderCallback = vi
+      .fn()
+      .mockResolvedValue({ result: "session", tokens: { access: "a", refresh: "r" } });
+
+    getConfigMock.mockReturnValue({
+      SITE_URL: "https://app.example.com",
+      OTEL_TELEMETRY_COLLECTION_ENABLED: false,
+      PORTAL_SSO_ENABLED: true
+    });
+
+    const service = ssoOidcServiceFactory({
+      ssoOidcConfigDAL: { update: vi.fn().mockResolvedValue([]) } as never,
+      orgDAL: {
+        findOrgById: vi.fn().mockResolvedValue({ id: orgId, name: "Org", slug: "s", rootOrgId: null, defaultMembershipRole: "member" }),
+        findMembership: vi.fn().mockResolvedValue([{ id: "m", isActive: true }])
+      } as never,
+      userDAL: {
+        transaction: (cb: (tx: unknown) => Promise<unknown>) => cb(undefined),
+        findById: vi.fn().mockResolvedValue(unverifiedUser),
+        updateById: userUpdateById
+      } as never,
+      userAliasDAL: {
+        findOne: vi.fn().mockResolvedValue(unverifiedAlias),
+        updateById: aliasUpdateById
+      } as never,
+      membershipRoleDAL: { create: vi.fn() } as never,
+      groupOps: {} as never,
+      orgSsoPermission: {} as never,
+      auditLog: {} as never,
+      seatGuard: { updateSubscriptionOrgMemberCount: vi.fn() } as never,
+      emailDomainDAL: { findOne: vi.fn().mockResolvedValue(undefined) } as never,
+      loginService: { processProviderCallback } as never,
+      tokenService: {} as never,
+      smtpService: { sendMail: vi.fn() } as never,
+      kmsService: {} as never,
+      telemetryService: { sendPostHogEvents: vi.fn().mockResolvedValue(undefined) } as never
+    });
+
+    const result = await service.oidcLogin({
+      externalId: "portal-sub",
+      email: "u@portal.local",
+      firstName: "U",
+      orgId,
+      ip: "1.2.3.4",
+      userAgent: "vitest",
+      isPortalLogin: true
+    });
+
+    expect(result.result).toBe("session");
+    expect(aliasUpdateById).toHaveBeenCalledWith("alias-id", { isEmailVerified: true }, undefined);
+    expect(userUpdateById).toHaveBeenCalledWith("user-id", { isEmailVerified: true, isAccepted: true }, undefined);
+    expect(processProviderCallback).toHaveBeenCalledWith(expect.objectContaining({ isEmailVerified: true }));
+  });
 });
