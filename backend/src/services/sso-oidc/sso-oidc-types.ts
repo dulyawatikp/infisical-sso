@@ -71,6 +71,11 @@ export type TOidcLoginDTO = {
   callbackPort?: string;
   groups?: string[];
   manageGroupMemberships?: boolean | null;
+  /**
+   * Portal SSO only: the identity was already authenticated by the IKP portal,
+   * so the IdP-email trust checks are skipped. Only honoured when PORTAL_SSO_ENABLED is on.
+   */
+  isPortalLogin?: boolean;
 };
 
 // Structural contracts for capabilities injected at wiring time.

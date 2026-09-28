@@ -54,7 +54,7 @@ type TSsoOidcServiceFactoryDep = {
   ssoOidcConfigDAL: Pick<TSsoOidcConfigDALFactory, "findOne" | "update" | "create">;
   orgDAL: TOidcSsoOrgDAL;
   userDAL: Pick<TUserDALFactory, "create" | "findOne" | "findById" | "updateById" | "transaction">;
-  userAliasDAL: Pick<TUserAliasDALFactory, "create" | "findOne">;
+  userAliasDAL: Pick<TUserAliasDALFactory, "create" | "findOne" | "updateById">;
   membershipRoleDAL: TOidcSsoMembershipRoleDAL;
   groupOps: TOidcSsoGroupOps;
   orgSsoPermission: TOidcSsoOrgSsoPermission;
@@ -150,7 +150,8 @@ export const ssoOidcServiceFactory = ({
     userAgent,
     callbackPort,
     groups = [],
-    manageGroupMemberships
+    manageGroupMemberships,
+    isPortalLogin
   }: TOidcLoginDTO) => {
     const serverCfg = await getServerCfg();
 
@@ -158,7 +159,11 @@ export const ssoOidcServiceFactory = ({
       throw new ForbiddenRequestError({ message: "Login with OIDC is disabled by administrator." });
     }
 
-    await verifyEmailDomainOwnershipInOrg({ email, orgId, emailDomainDAL });
+    const trustPortalIdentity = Boolean(isPortalLogin) && getConfig().PORTAL_SSO_ENABLED;
+
+    if (!trustPortalIdentity) {
+      await verifyEmailDomainOwnershipInOrg({ email, orgId, emailDomainDAL });
+    }
     const sanitizedEmail = sanitizeEmail(email);
     validateEmail(sanitizedEmail);
 
@@ -176,7 +181,12 @@ export const ssoOidcServiceFactory = ({
       // Existing alias branch — spec §5.4 step 6. NOTE: no seat check here (documented quirk).
       user = await userDAL.transaction(async (tx) => {
         const foundUser = await userDAL.findById(userAlias.userId, tx);
-        await verifyEmailDomainOwnershipInOrg({ email: foundUser.username ?? "", orgId, emailDomainDAL });
+        if (!trustPortalIdentity) {
+          await verifyEmailDomainOwnershipInOrg({ email: foundUser.username ?? "", orgId, emailDomainDAL });
+        } else if (!userAlias.isEmailVerified || !foundUser.isAccepted) {
+          await userDAL.updateById(foundUser.id, { isEmailVerified: true, isAccepted: true }, tx);
+          userAlias = await userAliasDAL.updateById(userAlias.id, { isEmailVerified: true }, tx);
+        }
 
         const [orgMembership] = await orgDAL.findMembership(
           {
@@ -217,7 +227,9 @@ export const ssoOidcServiceFactory = ({
               username: sanitizedEmail,
               lastName,
               authMethods: [],
-              isGhost: false
+              isGhost: false,
+              isEmailVerified: trustPortalIdentity,
+              isAccepted: trustPortalIdentity
             },
             tx
           );
@@ -230,7 +242,8 @@ export const ssoOidcServiceFactory = ({
             aliasType: UserAliasType.OIDC,
             externalId,
             emails: sanitizedEmail ? [sanitizedEmail] : [],
-            orgId
+            orgId,
+            isEmailVerified: trustPortalIdentity
           },
           tx
         );
@@ -334,7 +347,7 @@ export const ssoOidcServiceFactory = ({
 
     await ssoOidcConfigDAL.update({ orgId }, { lastUsed: new Date() });
 
-    if (user.email && !userAlias.isEmailVerified) {
+    if (!trustPortalIdentity && user.email && !userAlias.isEmailVerified) {
       const token = await tokenService.createTokenForUser({
         type: TokenType.TOKEN_EMAIL_VERIFICATION,
         userId: user.id,
@@ -358,7 +371,7 @@ export const ssoOidcServiceFactory = ({
     const callbackResult = await loginService.processProviderCallback({
       user,
       authMethod: AuthMethod.OIDC,
-      isEmailVerified: Boolean(userAlias.isEmailVerified),
+      isEmailVerified: trustPortalIdentity || Boolean(userAlias.isEmailVerified),
       aliasId: userAlias.id,
       ip,
       userAgent,

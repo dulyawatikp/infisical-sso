@@ -7,11 +7,14 @@ import { blockLocalAndPrivateIpAddresses } from "@app/lib/validator";
 import { ssoOidcServiceFactory } from "./sso-oidc-service";
 import { OidcConfigurationType } from "./sso-oidc-types";
 
+const { getConfigMock } = vi.hoisted(() => ({ getConfigMock: vi.fn() }));
+
 vi.mock("@app/lib/config/env", () => ({
-  getConfig: () => ({
-    SITE_URL: "https://app.example.com",
-    OTEL_TELEMETRY_COLLECTION_ENABLED: false
-  })
+  getConfig: getConfigMock
+}));
+
+vi.mock("@app/services/super-admin/super-admin-service", () => ({
+  getServerCfg: vi.fn().mockResolvedValue({ enabledLoginMethods: ["oidc"] })
 }));
 
 vi.mock("@app/lib/validator", async (importOriginal) => {
@@ -34,6 +37,11 @@ describe("ssoOidcServiceFactory", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(blockLocalAndPrivateIpAddresses).mockResolvedValue(undefined);
+    getConfigMock.mockReturnValue({
+      SITE_URL: "https://app.example.com",
+      OTEL_TELEMETRY_COLLECTION_ENABLED: false,
+      PORTAL_SSO_ENABLED: false
+    });
   });
 
   const createUpdateService = (isSmtpConnected: boolean) => {
@@ -173,5 +181,134 @@ describe("ssoOidcServiceFactory", () => {
 
     expect(verify).toHaveBeenCalledOnce();
     expect(update).toHaveBeenCalledOnce();
+  });
+
+  const createLoginService = (opts: { portalSsoEnabled: boolean; emailDomainVerified: boolean }) => {
+    const createdUser = { id: "user-id", email: "u@portal.local", username: "u@portal.local", isAccepted: true };
+    const createdAlias = { id: "alias-id", userId: "user-id", isEmailVerified: true };
+    const userCreate = vi.fn().mockResolvedValue(createdUser);
+    const aliasCreate = vi.fn().mockResolvedValue(createdAlias);
+    const createMembership = vi.fn().mockResolvedValue({ id: "membership-id" });
+    const processProviderCallback = vi.fn().mockResolvedValue({
+      result: "session",
+      tokens: { access: "a", refresh: "r" },
+      callbackPort: undefined
+    });
+    const sendMail = vi.fn().mockResolvedValue(undefined);
+    const emailDomainDAL = {
+      findOne: vi.fn().mockResolvedValue(opts.emailDomainVerified ? { orgId, domain: "portal.local" } : undefined)
+    };
+
+    getConfigMock.mockReturnValue({
+      SITE_URL: "https://app.example.com",
+      OTEL_TELEMETRY_COLLECTION_ENABLED: false,
+      PORTAL_SSO_ENABLED: opts.portalSsoEnabled
+    });
+
+    const service = ssoOidcServiceFactory({
+      ssoOidcConfigDAL: { update: vi.fn().mockResolvedValue([]) } as never,
+      orgDAL: {
+        findOrgById: vi.fn().mockResolvedValue({
+          id: orgId,
+          name: "Test Org",
+          slug: "test-org",
+          rootOrgId: null,
+          defaultMembershipRole: "member"
+        }),
+        findMembership: vi.fn().mockResolvedValue([{ id: "membership-id", isActive: true }]),
+        createMembership
+      } as never,
+      userDAL: {
+        transaction: (cb: (tx: unknown) => Promise<unknown>) => cb(undefined),
+        findOne: vi.fn().mockResolvedValue(undefined),
+        create: userCreate,
+        updateById: vi.fn().mockResolvedValue(undefined)
+      } as never,
+      userAliasDAL: {
+        findOne: vi.fn().mockResolvedValue(undefined),
+        create: aliasCreate,
+        updateById: vi.fn().mockResolvedValue(createdAlias)
+      } as never,
+      membershipRoleDAL: { create: vi.fn() } as never,
+      groupOps: {} as never,
+      orgSsoPermission: {} as never,
+      auditLog: {} as never,
+      seatGuard: { updateSubscriptionOrgMemberCount: vi.fn() } as never,
+      emailDomainDAL: emailDomainDAL as never,
+      loginService: { processProviderCallback } as never,
+      tokenService: { createTokenForUser: vi.fn() } as never,
+      smtpService: { sendMail } as never,
+      kmsService: {} as never,
+      telemetryService: { sendPostHogEvents: vi.fn().mockResolvedValue(undefined) } as never
+    });
+
+    return { service, userCreate, aliasCreate, processProviderCallback, sendMail };
+  };
+
+  test("portal login bypasses the email-domain gate and issues a session", async () => {
+    const { service, userCreate, aliasCreate, processProviderCallback, sendMail } = createLoginService({
+      portalSsoEnabled: true,
+      emailDomainVerified: false
+    });
+
+    const result = await service.oidcLogin({
+      externalId: "portal-sub",
+      email: "u@portal.local",
+      firstName: "U",
+      orgId,
+      ip: "1.2.3.4",
+      userAgent: "vitest",
+      isPortalLogin: true
+    });
+
+    expect(result.result).toBe("session");
+    expect(userCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ isEmailVerified: true, isAccepted: true }),
+      undefined
+    );
+    expect(aliasCreate).toHaveBeenCalledWith(expect.objectContaining({ isEmailVerified: true }), undefined);
+    expect(sendMail).not.toHaveBeenCalled();
+    expect(processProviderCallback).toHaveBeenCalledWith(expect.objectContaining({ isEmailVerified: true }));
+  });
+
+  test("non-portal login still enforces the email-domain gate", async () => {
+    const { service, processProviderCallback } = createLoginService({
+      portalSsoEnabled: true,
+      emailDomainVerified: false
+    });
+
+    await expect(
+      service.oidcLogin({
+        externalId: "idp-sub",
+        email: "u@portal.local",
+        firstName: "U",
+        orgId,
+        ip: "1.2.3.4",
+        userAgent: "vitest"
+      })
+    ).rejects.toBeInstanceOf(BadRequestError);
+
+    expect(processProviderCallback).not.toHaveBeenCalled();
+  });
+
+  test("portal flag is ignored when PORTAL_SSO_ENABLED is off", async () => {
+    const { service, processProviderCallback } = createLoginService({
+      portalSsoEnabled: false,
+      emailDomainVerified: false
+    });
+
+    await expect(
+      service.oidcLogin({
+        externalId: "portal-sub",
+        email: "u@portal.local",
+        firstName: "U",
+        orgId,
+        ip: "1.2.3.4",
+        userAgent: "vitest",
+        isPortalLogin: true
+      })
+    ).rejects.toBeInstanceOf(BadRequestError);
+
+    expect(processProviderCallback).not.toHaveBeenCalled();
   });
 });

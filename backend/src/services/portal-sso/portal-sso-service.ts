@@ -80,7 +80,8 @@ export const portalSsoServiceFactory = ({ oidcConfigService, orgDAL }: TPortalSs
       lastName,
       orgId: org.id,
       ip,
-      userAgent
+      userAgent,
+      isPortalLogin: true
     });
   };
 
